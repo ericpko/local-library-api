@@ -1,6 +1,9 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 
-use axum::{handler::Handler, routing::get, Router};
+use axum::{
+    error_handling::HandleErrorLayer, handler::Handler, http::StatusCode, routing::get, BoxError,
+    Router,
+};
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 
@@ -9,7 +12,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
-    // tracing_subscriber::fmt::init();
+    // add tracing (aka logging)
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG")
@@ -19,14 +22,28 @@ async fn main() {
         .init();
 
     // build a stack of tower middleware
-    let middleware = ServiceBuilder::new().layer(TraceLayer::new_for_http());
+    let middleware = ServiceBuilder::new()
+        .layer(HandleErrorLayer::new(|error: BoxError| async move {
+            if error.is::<tower::timeout::error::Elapsed>() {
+                Ok(StatusCode::REQUEST_TIMEOUT)
+            } else {
+                Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Unhandled internal error: {}", error),
+                ))
+            }
+        }))
+        .timeout(Duration::from_secs(10))
+        // add tracing (aka logging)
+        .layer(TraceLayer::new_for_http())
+        // give our handlers access to the db
+        // .layer(Extension(db))
+        .into_inner();
 
-    // build our app with a route
+    // compose our routes
     let users_router = routes::users::users_router();
     let app = Router::new()
         .route("/", get(routes::index::root))
-        // add tracing (aka logging)
-        // .layer(TraceLayer::new_for_http());
         .merge(users_router)
         // add middleware to all our routes
         .layer(middleware);
