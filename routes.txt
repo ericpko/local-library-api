@@ -1,0 +1,13 @@
+api/
+
+api/authors
+api/authors/:id
+api/authors/:id/books
+
+api/books
+api/books/:id
+api/books/:id/author
+
+api/genres
+api/genres/genre
+api/genres/genre/books

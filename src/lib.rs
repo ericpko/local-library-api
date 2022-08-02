@@ -1,6 +1,7 @@
 use axum::{http::StatusCode, response::IntoResponse};
 use tokio::signal;
 
+pub mod controllers;
 pub mod models;
 pub mod routes;
 

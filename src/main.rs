@@ -1,8 +1,7 @@
 use std::{net::SocketAddr, time::Duration};
 
 use axum::{
-    error_handling::HandleErrorLayer, handler::Handler, http::StatusCode, routing::get, BoxError,
-    Router,
+    error_handling::HandleErrorLayer, handler::Handler, http::StatusCode, BoxError, Router,
 };
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
@@ -41,10 +40,11 @@ async fn main() {
         .into_inner();
 
     // compose our routes
-    let users_router = routes::users::users_router();
+    let api_routes = Router::new()
+        .nest("/authors", routes::author_routes())
+        .nest("/books", routes::book_routes());
     let app = Router::new()
-        .route("/", get(routes::index::root))
-        .merge(users_router)
+        .nest("/api", api_routes)
         // add middleware to all our routes
         .layer(middleware);
 
