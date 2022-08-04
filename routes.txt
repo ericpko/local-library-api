@@ -1,13 +1,17 @@
-api/
+api/						GET
 
-api/authors
-api/authors/:id
-api/authors/:id/books
+api/authors					GET POST
+api/authors/:id				GET
+api/authors/:id/update		PUT
+api/authors/:id/delete		DELETE
+api/authors/:id/books		GET
 
-api/books
-api/books/:id
-api/books/:id/author
+api/books					GET POST
+api/books/:id				GET
+api/books/:id/update		PUT
+api/books/:id/delete		DELETE
+api/books/:id/author		GET
 
-api/genres
-api/genres/genre
-api/genres/genre/books
+api/genres					GET POST
+api/genres/genre			GET
+api/genres/genre/books		GET

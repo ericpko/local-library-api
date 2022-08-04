@@ -1,12 +1,17 @@
 use std::{net::SocketAddr, time::Duration};
 
 use axum::{
-    error_handling::HandleErrorLayer, handler::Handler, http::StatusCode, BoxError, Router,
+    error_handling::HandleErrorLayer,
+    handler::Handler,
+    http::StatusCode,
+    response::{IntoResponse, Redirect},
+    routing::get,
+    BoxError, Router,
 };
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 
-use axum_local_library::{handle_404, routes, shutdown_signal};
+use axum_local_library::{controllers, handle_404, routes, shutdown_signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -41,9 +46,11 @@ async fn main() {
 
     // compose our routes
     let api_routes = Router::new()
+        .route("/", get(controllers::api_index_handler))
         .nest("/authors", routes::author_routes())
         .nest("/books", routes::book_routes());
     let app = Router::new()
+        .route("/", get(root))
         .nest("/api", api_routes)
         // add middleware to all our routes
         .layer(middleware);
@@ -59,4 +66,8 @@ async fn main() {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
+}
+
+pub async fn root() -> impl IntoResponse {
+    Redirect::to("/api")
 }
