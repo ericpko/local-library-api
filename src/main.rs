@@ -1,21 +1,25 @@
+use axum_local_library::database::init_db;
 use std::{net::SocketAddr, time::Duration};
 
 use axum::{
     error_handling::HandleErrorLayer,
     handler::Handler,
-    http::StatusCode,
+    http::{HeaderValue, Method, StatusCode},
     response::{IntoResponse, Redirect},
     routing::get,
-    BoxError, Router,
+    BoxError, Extension, Router,
 };
 use tower::ServiceBuilder;
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
 use axum_local_library::{controllers, handle_404, routes, shutdown_signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> mongodb::error::Result<()> {
+    dotenv::dotenv().ok();
+
     // add tracing (aka logging)
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
@@ -24,6 +28,9 @@ async fn main() {
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();
+
+    // connect to mongodb database
+    let db = init_db().await?;
 
     // build a stack of tower middleware
     let middleware = ServiceBuilder::new()
@@ -41,7 +48,12 @@ async fn main() {
         // add tracing (aka logging)
         .layer(TraceLayer::new_for_http())
         // give our handlers access to the db
-        // .layer(Extension(db))
+        .layer(Extension(db))
+        .layer(
+            CorsLayer::new()
+                .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
+                .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE]),
+        )
         .into_inner();
 
     // compose our routes
@@ -59,15 +71,19 @@ async fn main() {
     let app = app.fallback(handle_404.into_service());
 
     // run our app
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let port = dotenv::var("PORT").unwrap().parse::<u16>().unwrap();
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
     tracing::debug!("listening on http://{addr}");
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
+
+    Ok(())
 }
 
+// index page / home page / localhost:3000/
 pub async fn root() -> impl IntoResponse {
     Redirect::to("/api")
 }
