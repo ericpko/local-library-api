@@ -1,3 +1,3 @@
 # Local Library API
 
-Backend API using Axum web framework in Rust for a local library of Authors, Books, and Genres.
+Backend API for a local library using Axum web framework in Rust with a Mongodb database.
