@@ -1,13 +1,21 @@
+use crate::models::book::Book;
 use axum::{
     http::StatusCode,
-    response::{IntoResponse, Result},
-    Json,
+    response::{IntoResponse, Result as AxumResult},
+    Extension, Json,
 };
+use bson::doc;
+use futures::stream::TryStreamExt;
+use mongodb::{options::FindOptions, Database};
 
-use crate::models::book::Book;
+pub async fn get_books_handler(Extension(db): Extension<Database>) -> AxumResult<Json<Vec<Book>>> {
+    let books_collection = db.collection::<Book>("books");
 
-pub async fn get_books_handler(Json(payload): Json<Book>) -> Result<Json<Book>, StatusCode> {
-    Ok(Json(payload))
+    let find_options = FindOptions::builder().sort(doc! {"title": 1}).build();
+    let books_cursor = books_collection.find(None, find_options).await.unwrap();
+    let books = books_cursor.try_collect().await.unwrap();
+
+    Ok(Json(books))
 }
 
 pub async fn create_book_handler(Json(payload): Json<Book>) -> impl IntoResponse {
